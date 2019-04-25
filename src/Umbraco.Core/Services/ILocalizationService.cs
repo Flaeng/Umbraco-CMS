@@ -89,6 +89,13 @@ namespace Umbraco.Core.Services
         void Save(IDictionaryItem dictionaryItem, int userId = Constants.Security.SuperUserId);
 
         /// <summary>
+        /// Saves a collection of <see cref="IDictionaryItem"/> objects
+        /// </summary>
+        /// <param name="dictionaryItems"><see cref="IDictionaryItem"/> to save</param>
+        /// <param name="userId">Optional id of the user saving the dictionary item</param>
+        void Save(IEnumerable<IDictionaryItem> dictionaryItems, int userId = Constants.Security.SuperUserId);
+
+        /// <summary>
         /// Deletes a <see cref="IDictionaryItem"/> object and its related translations
         /// as well as its children.
         /// </summary>

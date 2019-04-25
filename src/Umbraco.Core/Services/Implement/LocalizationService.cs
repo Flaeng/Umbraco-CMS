@@ -231,25 +231,11 @@ namespace Umbraco.Core.Services.Implement
         {
             using (var scope = ScopeProvider.CreateScope())
             {
-                if (scope.Events.DispatchCancelable(SavingDictionaryItem, this, new SaveEventArgs<IDictionaryItem>(dictionaryItem)))
-                {
-                    scope.Complete();
-                    return;
-                }
-
-                _dictionaryRepository.Save(dictionaryItem);
-
-                // ensure the lazy Language callback is assigned
-                // ensure the lazy Language callback is assigned
-
-                EnsureDictionaryItemLanguageCallback(dictionaryItem);
-                scope.Events.Dispatch(SavedDictionaryItem, this, new SaveEventArgs<IDictionaryItem>(dictionaryItem, false));
-
-                Audit(AuditType.Save, "Save DictionaryItem", userId, dictionaryItem.Id, "DictionaryItem");
+                saveUsingScope(scope, dictionaryItem, userId);
                 scope.Complete();
             }
         }
-
+        
         /// <summary>
         /// Deletes a <see cref="IDictionaryItem"/> object and its related translations
         /// as well as its children.
@@ -275,6 +261,41 @@ namespace Umbraco.Core.Services.Implement
 
                 scope.Complete();
             }
+        }
+
+        /// <summary>
+        /// Saves a collection of <see cref="IDictionaryItem"/> objects
+        /// </summary>
+        /// <param name="dictionaryItems"><see cref="IDictionaryItem"/> to save</param>
+        /// <param name="userId">Optional id of the user saving the dictionary item</param>
+        public void Save(IEnumerable<IDictionaryItem> dictionaryItems, int userId = Constants.Security.SuperUserId)
+        {
+            using (var scope = ScopeProvider.CreateScope())
+            {
+                foreach (var item in dictionaryItems)
+                {
+                    saveUsingScope(scope, item, userId);
+                }
+                scope.Complete();
+            }
+        }
+
+        private void saveUsingScope(IScope scope, IDictionaryItem dictionaryItem, int userId)
+        {
+            if (scope.Events.DispatchCancelable(SavingDictionaryItem, this, new SaveEventArgs<IDictionaryItem>(dictionaryItem)))
+            {
+                return;
+            }
+
+            _dictionaryRepository.Save(dictionaryItem);
+
+            // ensure the lazy Language callback is assigned
+            // ensure the lazy Language callback is assigned
+
+            EnsureDictionaryItemLanguageCallback(dictionaryItem);
+            scope.Events.Dispatch(SavedDictionaryItem, this, new SaveEventArgs<IDictionaryItem>(dictionaryItem, false));
+
+            Audit(AuditType.Save, "Save DictionaryItem", userId, dictionaryItem.Id, "DictionaryItem");
         }
 
         /// <summary>
