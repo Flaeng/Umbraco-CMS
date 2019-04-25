@@ -67,6 +67,11 @@ function DictionaryImportController($window, localizationService, navigationServ
     }
 
     vm.import = function (confirmed) {
+
+        if (!vm.filesHolder) {
+            return;
+        }
+
         vm.saveButtonState = 'busy';
 
         if (confirmed !== true) {
