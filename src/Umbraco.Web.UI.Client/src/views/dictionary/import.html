@@ -5,7 +5,7 @@
     </div>-->
 
     <form novalidate name="importDictionaryForm"
-          ng-submit="vm.import()"
+          ng-submit="vm.import(true)"
           val-form-manager>
         <div class="umb-dialog-body with-footer">
             <div class="umb-pane">
@@ -15,7 +15,7 @@
                             name="file"
                             ngf-select
                             ng-model="vm.filesHolder"
-                            ngf-change="vm.handleFiles($event)"
+                            ngf-change="vm.import()"
                             ngf-multiple="false"
                             ngf-pattern="*.csv">
 
@@ -27,15 +27,58 @@
                 </umb-control-group>
 
                 <umb-control-group label="@importTranslations_overrideExistingHeader" hide-label="false">
-                    <umb-checkbox model="vm.overrideExistingTranslations" text="{{ vm.overrideCheckboxLabel }}">
+                    <umb-checkbox model="vm.overrideExistingTranslations"
+                                  on-change="vm.import()"
+                                  text="{{ vm.overrideCheckboxLabel }}">
                     </umb-checkbox>
                 </umb-control-group>
 
-                <div ng-if="vm.state === 'error'">
-                    <div class="alert alert-error">
-                        <div>{{vm.serverErrorMessage}}</div>
-                    </div>
-                </div>
+
+                <umb-control-group label="@importTranslations_encoding" hide-label="false">
+                    <select class="input-block-level"
+                            ng-model="vm.selectedEncoding"
+                            ng-change="vm.import()"
+                            ng-options="encoding.key as encoding.text for encoding in vm.encodings"
+                            name="encoding"></select>
+                </umb-control-group>
+
+                <umb-control-group label="@importTranslations_delimiter" hide-label="false">
+                    <select class="input-block-level"
+                            ng-model="vm.selectedDelimiter"
+                            ng-change="vm.import()"
+                            ng-options="delimiter.key as delimiter.text for delimiter in vm.delimiters"
+                            name="delimiter"></select>
+                </umb-control-group>
+
+
+                <umb-load-indicator ng-show="vm.loading">
+                </umb-load-indicator>
+
+                <table class="table table-condensed" ng-if="!vm.loading && vm.dataFromFile">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>
+                                <localize key="importTranslations_oldValue"></localize>
+                            </th>
+                            <th>
+                                <localize key="importTranslations_newValue"></localize>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="item in vm.dataFromFile">
+                            <td>{{ item.ItemKey }}</td>
+                            <td>{{ item.OldValue }}</td>
+                            <td>{{ item.NewValue }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <umb-empty-state ng-if="!vm.loading && (!vm.dataFromFile || vm.dataFromFile.length === 0)"
+                                 position="center">
+                    <localize key="sort_sortEmptyState"></localize>
+                </umb-empty-state>
 
             </div>
         </div>
@@ -49,8 +92,8 @@
                         label-key="general_close">
             </umb-button>
 
-            <umb-button type="submit"
-                        action="vm.import()"
+            <umb-button type="button"
+                        action="vm.import(true)"
                         state="vm.saveButtonState"
                         button-style="success"
                         label-key="general_import">
@@ -58,5 +101,6 @@
         </div>
 
     </form>
+
 
 </div>

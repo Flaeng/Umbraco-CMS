@@ -1613,5 +1613,10 @@ Mange hilsner fra Umbraco robotten
     <key alias="selectFileButton">Vælg fil...</key>
     <key alias="overrideExistingHeader">Overskriv eksisterende oversættelser?</key>
     <key alias="overrideExistingCheckboxLabel">Overskriv eksisterende oversættelser</key>
+    <key alias="oldValue">Gml. værdi</key>
+    <key alias="newValue">Ny værdi</key>
+    <key alias="encoding">Encoding</key>
+    <key alias="delimiter">Afgrænser</key>
+    <key alias="reload">Genindlæs</key>
   </area>
 </language>

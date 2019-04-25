@@ -8,47 +8,93 @@
  */
 function DictionaryImportController($window, localizationService, navigationService, notificationsService, dictionaryResource, $q) {
 
-    var vm = this; 
+    var vm = this;
 
+    vm.state = 'loading';
     vm.saveButtonState = "init";
     vm.overrideExistingTranslations = false;
     vm.filesHolder = null;
     vm.overrideCheckboxLabel = 'Override';
+    vm.reloadButtonText = 'Reload';
+
+    vm.dataFromFile = null;
+
+    vm.delimiters = [
+        { key: ',', text: ',' },
+        { key: ';', text: ';' },
+        { key: '\t', text: 'tab' },
+        { key: '|', text: '|' },
+        { key: '^', text: '^' },
+        { key: '~', text: '~' }
+    ];
+    vm.selectedDelimiter = ',';
+
+    vm.encodings = [
+        { key: 'ANSI', text: 'ANSI' },
+        { key: 'Unicode', text: 'Unicode/UTF-16' },
+        { key: 'UTF-8', text: 'UTF-8' },
+        { key: 'UTF-32', text: 'UTF-32' },
+        { key: 'Windows-1252', text: 'Windows-1252' },
+        { key: 'ISO-8859-1', text: 'ISO-8859-1' }
+    ];
+    vm.selectedEncoding = 'ANSI';
 
     function onInit() {
 
-        var localizationPromise = localizationService.localize("importTranslations_overrideExistingCheckboxLabel").then(function (value) {
-            if ((value || '').toString().length !== 0) {
-                vm.overrideCheckboxLabel = value;
+        var localizationPromise = localizationService.localizeMany(["importTranslations_overrideExistingCheckboxLabel", "importTranslations_reload"]).then(function (items) {
+
+            var overrideLabel = items[0].value;
+            if ((overrideLabel || '').toString().length !== 0) {
+                vm.overrideCheckboxLabel = overrideLabel;
             }
+
+            var reloadButton = items[1].value;
+            if ((reloadButton || '').toString().length !== 0) {
+                vm.reloadButtonText = reloadButton;
+            }
+
+
         });
 
         $q.all(localizationPromise).then(function () {
-            vm.loading = false;
+            vm.state = 'upload';
         }, function () {
-            vm.loading = false;
+            vm.state = 'upload';
             localizationService.localize("speechBubbles_dictionaryItemsExportError").then(function (value) {
                 notificationsService.error(value);
             });
         });
     }
 
-    vm.import = function () {
+    vm.import = function (confirmed) {
         vm.saveButtonState = 'busy';
 
-        dictionaryResource.importDictionaryItems(vm.filesHolder, vm.overrideExistingTranslations)
-            .then(function () {
+        if (confirmed !== true) {
+            vm.loading = true;
+        }
+        confirmed = confirmed || false;
 
-                console.log('reload0');
-                localizationService.localize("speechBubbles_dictionaryItemsImportedSuccess").then(function (value) {
-                    notificationsService.success(value);
-                });
+        dictionaryResource.importDictionaryItems(vm.filesHolder, vm.overrideExistingTranslations, vm.selectedEncoding, vm.selectedDelimiter, confirmed)
+            .then(function (data) {
 
-                navigationService.hideMenu();
-                $window.location.reload(); //This is a temporary fix to make sure the current view is being reloaded
+                vm.loading = false;
+                vm.saveButtonState = 'init';
+
+                vm.dataFromFile = data;
+
+                if (confirmed) {
+                    localizationService.localize("speechBubbles_dictionaryItemsImportedSuccess").then(function (value) {
+                        notificationsService.success(value);
+                    });
+
+                    navigationService.hideMenu();
+                    $window.location.reload(); //This is a temporary fix to make sure the current view is being reloaded
+                }
 
             }, function (evt, status, headers, config) {
+                //console.log('evt', evt);
 
+                vm.loading = false;
                 // set status done
                 vm.saveButtonState = "error";
 

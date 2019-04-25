@@ -165,7 +165,7 @@ function dictionaryResource($q, $http, $location, umbRequestHelper, umbDataForma
             idQuery += "languageIds=" + item + "&";
         });
 
-        var url = umbRequestHelper.getApiUrl("dictionaryApiBaseUrl", "Export", idQuery);
+        var url = umbRequestHelper.getApiUrl("dictionaryApiBaseUrl", "exportDictionaryItems", idQuery);
 
         return umbRequestHelper.downloadFile(url);
     }
@@ -180,17 +180,23 @@ function dictionaryResource($q, $http, $location, umbRequestHelper, umbDataForma
         *
         * @param {Object} file  The ngf-file-object that should be uploaded and imported
         * @param {Bool} overrideExistingTranslations If this is checked existing translations will be overriden if found in the file
+        * @param {String} encoding Encoding of the file
+        * @param {String} delimiter Delimiter of the file
+        * @param {Bool} confirmed Editors has confirmed the encoding and delimiter and the data should be saved
         * @returns {Promise} resourcePromise object.
         *
     */
-    function importDictionaryItems(file, overrideExistingTranslations) {
+    function importDictionaryItems(file, overrideExistingTranslations, encoding, delimiter, confirmed) {
 
         var overrideValue = (overrideExistingTranslations === true) ? "1" : "0";
+        //var encoding = ( === true) ? "1" : "0";
+        //var delimiter = (delimiter === true) ? "1" : "0";
+        var confirmed = (confirmed === true) ? "1" : "0";
 
         return umbRequestHelper.resourcePromise(
             Upload.upload({
                 url: umbRequestHelper.getApiUrl("dictionaryApiBaseUrl", "importDictionaryItems"),
-                fields: { override: overrideValue },
+                fields: { override: overrideValue, encoding: encoding, delimiter: delimiter, confirmed: confirmed },
                 file: file
             })
         );

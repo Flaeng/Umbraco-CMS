@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using CsvHelper;
@@ -140,13 +141,13 @@ namespace Umbraco.Web.Editors
         /// <param name="languageIds"></param>
         /// <returns></returns>
         [HttpGet]
-        public HttpResponseMessage Export([FromUri]int[] languageIds)
+        public HttpResponseMessage ExportDictionaryItems([FromUri]int[] languageIds)
         {
             var memory = new MemoryStream();
             try
             {
                 var writer = new StreamWriter(memory);
-                var csvWriter = new CsvWriter(writer);
+                var csvWriter = new CsvWriter(writer, NewCsvConfiguration());
 
                 //Writer headers
                 csvWriter.WriteField("");
@@ -224,6 +225,11 @@ namespace Umbraco.Web.Editors
             }
         }
 
+        private static CsvHelper.Configuration.Configuration NewCsvConfiguration() => new CsvHelper.Configuration.Configuration
+        {
+            MissingFieldFound = null //Set missing field found to null so CsvReader wont throw exceptions when we try to fetch non existing fields
+        };
+
 
         [HttpPost]
         [FileUploadCleanupFilter(false)]
@@ -249,6 +255,10 @@ namespace Umbraco.Web.Editors
                 }
 
                 var overrideValues = (result.FormData["override"] ?? "0").Equals("1");
+                var encoding = (result.FormData["encoding"] ?? "0");
+                var delimiter = (result.FormData["delimiter"] ?? "0");
+                var confirmed = (result.FormData["confirmed"] ?? "0").Equals("1");
+
                 var file = result.FileData[0];
                 var fileName = file.Headers.ContentDisposition.FileName.Trim('\"');
                 var ext = fileName.Substring(fileName.LastIndexOf('.') + 1).ToLower();
@@ -263,12 +273,22 @@ namespace Umbraco.Web.Editors
                 {
                     return BadRequest("Unsupported file extension");
                 }
-                using (var reader = new StreamReader(filepath))
+
+                var csvConfiguration = NewCsvConfiguration();
+                switch (encoding.ToLower())
                 {
-                    var csvReader = new CsvReader(reader, new CsvHelper.Configuration.Configuration
-                    {
-                        MissingFieldFound = null //Set missing field found to null so CsvReader wont throw exceptions when we try to fetch non existing fields
-                    });
+                    case "utf-8": csvConfiguration.Encoding = Encoding.UTF8; break;
+                    case "utf-32": csvConfiguration.Encoding = Encoding.UTF32; break;
+                    case "windows-1252": csvConfiguration.Encoding = Encoding.GetEncoding("Windows-1252"); break;
+                    case "iso-8859-1": csvConfiguration.Encoding = Encoding.GetEncoding("ISO-8859-1"); break;
+                    case "unicode": csvConfiguration.Encoding = Encoding.Unicode; break;
+                    default: csvConfiguration.Encoding = Encoding.ASCII; break;
+                }
+                csvConfiguration.Delimiter = delimiter; //If the current thread runs on i.e. Danish culture, the default delimiter is semicolon(;). That's why we specify the delimiter
+
+                using (var reader = new StreamReader(filepath, csvConfiguration.Encoding))
+                {
+                    var csvReader = new CsvReader(reader, csvConfiguration);
 
                     //Read first line/row of data
                     if (!csvReader.Read())
@@ -295,6 +315,7 @@ namespace Umbraco.Web.Editors
                     }
 
                     //Read all the non-header rows
+                    var changes = new List<IDictionaryItemChange>();
                     var itemsToSave = new List<IDictionaryItem>();
                     while (csvReader.Read())
                     {
@@ -306,7 +327,7 @@ namespace Umbraco.Web.Editors
                         //Throw an exception if non existing ItemKey was read from the file
                         var dictionaryItem = Services.LocalizationService.GetDictionaryItemByKey(itemKey);
                         if (dictionaryItem == null)
-                            return BadRequest($"Item with key '{itemKey}' not found");
+                            continue;
 
                         //Loop throught the languages we found in the header row
                         foreach (var langIndex in langIndexList)
@@ -324,8 +345,9 @@ namespace Umbraco.Web.Editors
                                 //if the translation already exist and is not the same as the one from the file, we check if the editor has checked the "Override values"-checkbox
                                 if (translation == null || translation.Value.IsNullOrWhiteSpace() || (!translation.Value.Equals(localizedString) && overrideValues))
                                 {
+                                    changes.Add(new IDictionaryItemChange { ItemKey = itemKey, OldValue = translation.Value, NewValue = localizedString, CultureName = language.CultureName });
                                     Services.LocalizationService.AddOrUpdateDictionaryValue(dictionaryItem, language, localizedString);
-
+                                    
                                     //Add the IDictionaryItem to a list for saving later - This way if theres and error on e.x. line 10, all translations read before line 10 wont be saved
                                     if (!itemsToSave.Contains(dictionaryItem))
                                     {
@@ -337,8 +359,11 @@ namespace Umbraco.Web.Editors
                     }
 
                     //Save translations
-                    Services.LocalizationService.Save(itemsToSave, Security.CurrentUser.Id);
-                    return Ok();
+                    if (confirmed)
+                    {
+                        Services.LocalizationService.Save(itemsToSave, Security.CurrentUser.Id);
+                    }
+                    return Ok(changes);
                 }
             }
             finally
@@ -349,6 +374,13 @@ namespace Umbraco.Web.Editors
             }
         }
 
+        public class IDictionaryItemChange
+        {
+            public string ItemKey { get; set; }
+            public string CultureName { get; set; }
+            public string OldValue { get; set; }
+            public string NewValue { get; set; }
+        }
 
         /// <summary>
         /// Saves a dictionary item
