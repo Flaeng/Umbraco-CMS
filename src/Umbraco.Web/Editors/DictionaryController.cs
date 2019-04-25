@@ -1,12 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
 using System.Web.Http;
+using CsvHelper;
 using Umbraco.Core;
 using Umbraco.Core.Cache;
 using Umbraco.Core.Configuration;
+using Umbraco.Core.IO;
 using Umbraco.Core.Logging;
 using Umbraco.Core.Models;
 using Umbraco.Core.Persistence;
@@ -128,6 +133,222 @@ namespace Umbraco.Web.Editors
 
             return Mapper.Map<IDictionaryItem, DictionaryDisplay>(dictionary);
         }
+
+        /// <summary>
+        /// Exports translations for the languages passed as the parameter
+        /// </summary>
+        /// <param name="languageIds"></param>
+        /// <returns></returns>
+        [HttpGet]
+        public HttpResponseMessage Export([FromUri]int[] languageIds)
+        {
+            var memory = new MemoryStream();
+            try
+            {
+                var writer = new StreamWriter(memory);
+                var csvWriter = new CsvWriter(writer);
+
+                //Writer headers
+                csvWriter.WriteField("");
+                //Write the culture name for each selected language as a header (also validates that all languageIds passed are valid)
+                var languageIdsFromDatabase = new List<int>();
+                foreach (var lang in Services.LocalizationService.GetAllLanguages().Where(x => languageIds.Contains(x.Id)))
+                {
+                    languageIdsFromDatabase.Add(lang.Id);
+                    csvWriter.WriteField(lang.CultureName);
+                }
+                languageIds = languageIdsFromDatabase.ToArray();
+
+                //Writer dictionary items
+                var rootNodes = Services.LocalizationService.GetRootDictionaryItems();
+                writeNodes(csvWriter, languageIds, rootNodes);
+
+                //Flush the streams and go back to the begin of the memory stream so we can read it to a string
+                csvWriter.Flush();
+                writer.Flush();
+                memory.Seek(0, SeekOrigin.Begin);
+                var reader = new StreamReader(memory);
+                var data = reader.ReadToEnd();
+
+                string filename = $"translations-{DateTime.Now.ToString(@"yyyy\-MM\-dd")}.csv";
+
+                var response = new HttpResponseMessage
+                {
+                    Content = new StringContent(data)
+                    {
+                        Headers =
+                        {
+                            ContentDisposition = new ContentDispositionHeaderValue("attachment")
+                            {
+                                FileName = filename
+                            },
+                            ContentType = new MediaTypeHeaderValue("application/octet-stream")
+                        }
+                    }
+                };
+
+                // Set custom header so umbRequestHelper.downloadFile can save the correct filename
+                response.Headers.Add("x-filename", filename);
+
+                return response;
+            }
+            finally
+            {
+                //Finally clear up the memory stream no matter the response type
+                memory.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Writes translations for a collection of IDictionaryItem recursivly (writing the nodes descendants as well)
+        /// </summary>
+        /// <param name="csvWriter">Stream to write to</param>
+        /// <param name="languageIds">Languages for which the translations should be written to the stream</param>
+        /// <param name="nodes">IDictionaryItems to be written to the stream</param>
+        private void writeNodes(CsvWriter csvWriter, int[] languageIds, IEnumerable<IDictionaryItem> nodes)
+        {
+            foreach (var node in nodes.OrderBy(ItemSort()))
+            {
+                csvWriter.NextRecord();
+                csvWriter.WriteField(node.ItemKey);
+                foreach (var langId in languageIds)
+                {
+                    csvWriter.WriteField(node.GetTranslatedValue(langId));
+                }
+
+                var children = Services.LocalizationService.GetDictionaryItemChildren(node.Key);
+                if (children != null && children.Any())
+                {
+                    writeNodes(csvWriter, languageIds, children);
+                }
+            }
+        }
+
+
+        [HttpPost]
+        [FileUploadCleanupFilter(false)]
+        public async Task<IHttpActionResult> ImportDictionaryItems()
+        {
+            string filepath = null;
+            try
+            {
+                if (Request.Content.IsMimeMultipartContent() == false)
+                {
+                    return base.ResponseMessage(new HttpResponseMessage(HttpStatusCode.UnsupportedMediaType));
+                }
+
+                var root = IOHelper.MapPath(SystemDirectories.TempData.EnsureEndsWith('/') + "FileUploads");
+                Directory.CreateDirectory(root);
+                var provider = new MultipartFormDataStreamProvider(root);
+                var result = await Request.Content.ReadAsMultipartAsync(provider);
+
+                //must have a file
+                if (result.FileData.Count == 0)
+                {
+                    return NotFound();
+                }
+
+                var overrideValues = (result.FormData["override"] ?? "0").Equals("1");
+                var file = result.FileData[0];
+                var fileName = file.Headers.ContentDisposition.FileName.Trim('\"');
+                var ext = fileName.Substring(fileName.LastIndexOf('.') + 1).ToLower();
+
+                // renaming the file because MultipartFormDataStreamProvider has created a random fileName instead of using the name from the
+                // content-disposition for more than 6 years now. Creating a CustomMultipartDataStreamProvider deriving from MultipartFormDataStreamProvider
+                // seems like a cleaner option, but I'm not sure where to put it and renaming only takes one line of code.
+                filepath = root + "\\" + fileName;
+                System.IO.File.Move(result.FileData[0].LocalFileName, filepath);
+
+                if (!ext.InvariantEquals("csv"))
+                {
+                    return BadRequest("Unsupported file extension");
+                }
+                using (var reader = new StreamReader(filepath))
+                {
+                    var csvReader = new CsvReader(reader, new CsvHelper.Configuration.Configuration
+                    {
+                        MissingFieldFound = null //Set missing field found to null so CsvReader wont throw exceptions when we try to fetch non existing fields
+                    });
+
+                    //Read first line/row of data
+                    if (!csvReader.Read())
+                    {
+                        return base.Ok("");
+                    }
+
+                    //Fetch all languages and create a dictionary for fast lookup of culturenames written in the file
+                    var allLanguages = Services.LocalizationService.GetAllLanguages().ToDictionary(x => x.CultureName);
+                    var langIndexList = new Dictionary<int, ILanguage>();
+                    for (int i = 1; i < int.MaxValue; i++)
+                    {
+                        string fieldValue = csvReader.GetField(i);
+                        if (fieldValue == null) //If fieldValue is null we have reach the end of the line
+                            break;
+
+                        //Check if language is created in the Umbraco solution
+                        //Add it with it index to a dictionary of the languages in the file
+                        ILanguage language;
+                        if (allLanguages.TryGetValue(fieldValue, out language))
+                        {
+                            langIndexList.Add(i, language);
+                        }
+                    }
+
+                    //Read all the non-header rows
+                    var itemsToSave = new List<IDictionaryItem>();
+                    while (csvReader.Read())
+                    {
+                        //ItemKey should always be in the first cell - if we dont find one it might be an empty line
+                        var itemKey = csvReader[0];
+                        if (itemKey.IsNullOrWhiteSpace())
+                            continue;
+
+                        //Throw an exception if non existing ItemKey was read from the file
+                        var dictionaryItem = Services.LocalizationService.GetDictionaryItemByKey(itemKey);
+                        if (dictionaryItem == null)
+                            return BadRequest($"Item with key '{itemKey}' not found");
+
+                        //Loop throught the languages we found in the header row
+                        foreach (var langIndex in langIndexList)
+                        {
+                            int index = langIndex.Key;
+                            var language = langIndex.Value;
+
+                            //Read the localized string from the current row
+                            string localizedString = csvReader[index];
+                            if (!localizedString.IsNullOrWhiteSpace())
+                            {
+                                var translation = dictionaryItem.Translations.FirstOrDefault(x => x.LanguageId == language.Id);
+
+                                //if the translation doesnt exist or the value is empty, we write the localized string
+                                //if the translation already exist and is not the same as the one from the file, we check if the editor has checked the "Override values"-checkbox
+                                if (translation == null || translation.Value.IsNullOrWhiteSpace() || (!translation.Value.Equals(localizedString) && overrideValues))
+                                {
+                                    Services.LocalizationService.AddOrUpdateDictionaryValue(dictionaryItem, language, localizedString);
+
+                                    //Add the IDictionaryItem to a list for saving later - This way if theres and error on e.x. line 10, all translations read before line 10 wont be saved
+                                    if (!itemsToSave.Contains(dictionaryItem))
+                                    {
+                                        itemsToSave.Add(dictionaryItem);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    //Save translations
+                    Services.LocalizationService.Save(itemsToSave, Security.CurrentUser.Id);
+                    return Ok();
+                }
+            }
+            finally
+            {
+                //Cleanup after we are done reading or an exception was thrown
+                if (!filepath.IsNullOrWhiteSpace())
+                    System.IO.File.Delete(filepath);
+            }
+        }
+
 
         /// <summary>
         /// Saves a dictionary item

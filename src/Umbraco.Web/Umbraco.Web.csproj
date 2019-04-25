@@ -62,6 +62,9 @@
   <ItemGroup>
     <PackageReference Include="ClientDependency" Version="1.9.7" />
     <PackageReference Include="CSharpTest.Net.Collections" Version="14.906.1403.1082" />
+    <PackageReference Include="CsvHelper">
+      <Version>12.1.2</Version>
+    </PackageReference>
     <PackageReference Include="Examine" Version="1.0.0" />
     <PackageReference Include="HtmlAgilityPack" Version="1.8.14" />
     <PackageReference Include="ImageProcessor">
