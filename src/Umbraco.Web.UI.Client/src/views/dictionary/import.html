@@ -1,0 +1,62 @@
+﻿<div class="umbracoDialog" ng-controller="Umbraco.Editors.Dictionary.ImportController as vm">
+
+    <!--<div class="umb-pane">
+      <h5><localize key="create_createUnder">Create an item under</localize> {{currentNode.name}}</h5>
+    </div>-->
+
+    <form novalidate name="importDictionaryForm"
+          ng-submit="vm.import()"
+          val-form-manager>
+        <div class="umb-dialog-body with-footer">
+            <div class="umb-pane">
+
+                <umb-control-group label="@importTranslations_selectFileHeader" hide-label="false">
+                    <button class="btn"
+                            name="file"
+                            ngf-select
+                            ng-model="vm.filesHolder"
+                            ngf-change="vm.handleFiles($event)"
+                            ngf-multiple="false"
+                            ngf-pattern="*.csv">
+
+                        <span ng-show="vm.filesHolder === null">
+                            <localize key="importTranslations_selectFileButton">Select file...</localize>
+                        </span>
+                        <span ng-bind="vm.filesHolder.name"></span>
+                    </button>
+                </umb-control-group>
+
+                <umb-control-group label="@importTranslations_overrideExistingHeader" hide-label="false">
+                    <umb-checkbox model="vm.overrideExistingTranslations" text="{{ vm.overrideCheckboxLabel }}">
+                    </umb-checkbox>
+                </umb-control-group>
+
+                <div ng-if="vm.state === 'error'">
+                    <div class="alert alert-error">
+                        <div>{{vm.serverErrorMessage}}</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+        <div class="umb-dialog-footer btn-toolbar umb-btn-toolbar">
+
+            <umb-button type="button"
+                        button-style="link"
+                        action="vm.close()"
+                        label-key="general_close">
+            </umb-button>
+
+            <umb-button type="submit"
+                        action="vm.import()"
+                        state="vm.saveButtonState"
+                        button-style="success"
+                        label-key="general_import">
+            </umb-button>
+        </div>
+
+    </form>
+
+</div>

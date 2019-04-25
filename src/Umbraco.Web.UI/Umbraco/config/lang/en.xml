@@ -18,9 +18,11 @@
     <key alias="disable">Disable</key>
     <key alias="emptyRecycleBin">Empty recycle bin</key>
     <key alias="enable">Enable</key>
+    <key alias="export">Export</key>
     <key alias="exportDocumentType">Export Document Type</key>
     <key alias="importDocumentType">Import Document Type</key>
     <key alias="importPackage">Import Package</key>
+    <key alias="import">Import</key>
     <key alias="liveEdit">Edit in Canvas</key>
     <key alias="logout">Exit</key>
     <key alias="move">Move</key>
@@ -620,6 +622,7 @@
     <key alias="elements">Elements</key>
     <key alias="email">Email</key>
     <key alias="error">Error</key>
+    <key alias="export">Export</key>
     <key alias="field">Field</key>
     <key alias="findDocument">Find</key>
     <key alias="first">First</key>
@@ -2111,5 +2114,15 @@ To manage your website, simply open the Umbraco back office and start adding con
     <key alias="settingsHealthCheck">Health Check</key>
     <key alias="memberIntro">Getting Started</key>
     <key alias="formsInstall">Install Umbraco Forms</key>
-  </area>>
+  </area>
+  <area alias="exportTranslations">
+    <key alias="languages">Languages</key>
+    <key alias="selectAll">Select all</key>
+  </area>
+  <area alias="importTranslations">
+    <key alias="selectFileHeader">File</key>
+    <key alias="selectFileButton">Select file...</key>
+    <key alias="overrideExistingHeader">Override existing translations?</key>
+    <key alias="overrideExistingCheckboxLabel">Override existing translations</key>
+  </area>
 </language>

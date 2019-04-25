@@ -1,0 +1,55 @@
+﻿<div class="umbracoDialog" ng-controller="Umbraco.Editors.Dictionary.ExportController as vm">
+
+    <!--<div class="umb-pane">
+      <h5><localize key="create_createUnder">Create an item under</localize> {{currentNode.name}}</h5>
+    </div>-->
+
+    <umb-load-indicator ng-show="vm.loading">
+    </umb-load-indicator>
+
+    <form novalidate name="exportDictionaryForm"
+          ng-hide="vm.loading"
+          ng-submit="vm.export()"
+          val-form-manager>
+
+        <div class="umb-dialog-body with-footer">
+            <div class="umb-pane">
+
+                <umb-control-group label="@exportTranslations_languages"
+                                   hide-label="false">
+                    <ul class="unstyled">
+                        <li>
+                            <umb-checkbox model="vm.allLanguagesAreSelected"
+                                          text="{{ vm.selectAllText }}"
+                                          on-change="vm.toggleAllLanguages()">
+                            </umb-checkbox>
+                        </li>
+                        <li ng-repeat="lang in vm.languages">
+                            <umb-checkbox model="lang.selected"
+                                          text="{{ lang.name }}"
+                                          on-change="vm.toggleAllLanguagesAreSelectedIfLangIsSelected(lang)">
+                            </umb-checkbox>
+                        </li>
+                    </ul>
+                </umb-control-group>
+
+            </div>
+        </div>
+
+        <div class="umb-dialog-footer btn-toolbar umb-btn-toolbar">
+
+            <umb-button type="button"
+                        button-style="link"
+                        action="vm.close()"
+                        label-key="general_close">
+            </umb-button>
+
+            <umb-button type="submit"
+                        state="vm.saveButtonState"
+                        button-style="success"
+                        label-key="general_export">
+            </umb-button>
+        </div>
+
+    </form>
+</div>

@@ -17,7 +17,9 @@
     <key alias="disable">Deaktivér</key>
     <key alias="emptyRecycleBin">Tøm papirkurv</key>
     <key alias="enable">Aktivér</key>
+    <key alias="export">Eksportér</key>
     <key alias="exportDocumentType">Eksportér dokumenttype</key>
+    <key alias="import">Importér</key>
     <key alias="importDocumentType">Importér dokumenttype</key>
     <key alias="importPackage">Importér pakke</key>
     <key alias="liveEdit">Redigér i Canvas</key>
@@ -597,6 +599,7 @@
     <key alias="elements">Elementer</key>
     <key alias="email">E-mail</key>
     <key alias="error">Fejl</key>
+    <key alias="export">Eksportér</key>
     <key alias="field">Felt</key>
     <key alias="findDocument">Find</key>
     <key alias="first">Første</key>
@@ -1600,5 +1603,15 @@ Mange hilsner fra Umbraco robotten
     <key alias="settingsHealthCheck">Health Check</key>
     <key alias="memberIntro">Kom godt i gang</key>
     <key alias="formsInstall">Installer Umbraco Forms</key>
+  </area>
+  <area alias="exportTranslations">
+    <key alias="languages">Sprog</key>
+    <key alias="selectAll">Vælg alle</key>
+  </area>
+  <area alias="importTranslations">
+    <key alias="selectFileHeader">Fil</key>
+    <key alias="selectFileButton">Vælg fil...</key>
+    <key alias="overrideExistingHeader">Overskriv eksisterende oversættelser?</key>
+    <key alias="overrideExistingCheckboxLabel">Overskriv eksisterende oversættelser</key>
   </area>
 </language>
